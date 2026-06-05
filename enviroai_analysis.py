@@ -1,7 +1,16 @@
 """
-EnviroAI — محطة علوم الجو التعليمية
-كلية العلوم  / الجامعة المستنصرية
+EnviroAI — Air Quality & Weather Analysis System
+=================================================
+كلية العلوم / الجامعة المستنصرية — بغداد / العراق
 بالتعاون مع وزارة البيئة / مديرية البيئة الحضرية
+قسم مراقبة نوعية الهواء والضوضاء
+
+لجنة الإعداد:
+  • أ.م.د. حسام طارق محمد
+  • م. نعم داري ابراهيم
+  • بإشراف رئيس قسم علوم الجو
+
+تحليل بيانات جودة الهواء والطقس باستخدام رموز AQI الرسمية
 """
 
 import pandas as pd
@@ -167,9 +176,9 @@ def plot_aqi_dashboard(data: dict, save_path: str = "output"):
 
     title_text = (
         "تقرير جودة الهواء — محطة علوم الجو التعليمية\n"
-        "كلية العلوم ب / الجامعة المستنصرية    |    أبريل – مايو 2026"
+        "كلية العلوم / الجامعة المستنصرية    |    أبريل – مايو 2026"
     )
-    fig.text(0.5, 0.94, title_text, ha="center", va="top", fontsize=14,
+    fig.text(0.5, 0.955, title_text, ha="center", va="top", fontsize=14,
              color="white", fontweight="bold",
              fontproperties=_arabic_font())
 
@@ -323,70 +332,211 @@ def plot_aqi_dashboard(data: dict, save_path: str = "output"):
 #  FIGURE 2 — AQI OFFICIAL SCALE LEGEND
 # ─────────────────────────────────────────────
 def plot_aqi_scale_reference(save_path: str = "output"):
-    """Reproduce the official AQI reference card (دليل مؤشر جودة الهواء)."""
+    """
+    AQI reference card — white background, official colours, face icons (like the reference image).
+    Layout per row: [face icon box] | [range + Arabic label + description]
+    """
     os.makedirs(save_path, exist_ok=True)
 
-    fig, ax = plt.subplots(figsize=(10, 7), facecolor="#1c1c1c")
-    ax.set_facecolor("#1c1c1c")
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, len(AQI_LEVELS) + 1.2)
-    ax.axis("off")
-
-    fig.text(0.5, 0.96, "دليل مؤشر جودة الهواء  |  AQI Reference Guide",
-             ha="center", va="top", fontsize=14, color="white",
-             fontweight="bold", fontproperties=_arabic_font())
-
-    descriptions = [
-        "جودة الهواء مرضية وتشكل خطرًا قليلاً أو منعدماً. يوصى بتهوية منزلك.\n"
-        "Air quality is satisfactory and poses little or no risk.",
-
-        "يجب على الأفراد الحساسين تجنب الأنشطة الخارجية المكثفة.\n"
-        "Sensitive groups should limit prolonged outdoor exertion.",
-
-        "الجمهور والأفراد الحساسون معرضون لخطر الإصابة بمشاكل تنفسية.\n"
-        "Members of sensitive groups may experience health effects.",
-
-        "يزداد احتمال حدوث آثار ضارة. يجب تجنب الأنشطة الخارجية المكثفة.\n"
-        "Everyone may begin to experience health effects.",
-
-        "سيتأثر عموم الجمهور بشكل ملحوظ. ينبغي البقاء في المنازل.\n"
-        "Health alert: everyone may experience more serious health effects.",
-
-        "قد تؤدي إلى أمراض خطيرة. يجب على الجميع تجنب الرياضة والبقاء في الداخل.\n"
-        "Health warnings of emergency conditions. Everyone is at risk.",
+    # ── Data ──────────────────────────────────────────────────────────────
+    rows = [
+        {
+            "range": "0 – 50",
+            "label_ar": "جيدة",
+            "label_en": "Good",
+            "desc_ar": "جودة الهواء مرضية وتشكل خطرًا قليلاً أو منعدماً. يوصى بتهوية منزلك.",
+            "desc_en": "Air quality is satisfactory and poses little or no risk.",
+            "bg":   "#00E400",   # green
+            "face": "#00E400",
+            "mask": False,
+            "tc":   "#000000",
+        },
+        {
+            "range": "51 – 100",
+            "label_ar": "معتدل",
+            "label_en": "Moderate",
+            "desc_ar": "يجب على الأفراد الذين لديهم حساسية مفرطة تجنب الأنشطة التي تتم في الهواء الطلق.",
+            "desc_en": "Sensitive individuals should limit prolonged outdoor exertion.",
+            "bg":   "#FFFF00",
+            "face": "#FFFF00",
+            "mask": False,
+            "tc":   "#000000",
+        },
+        {
+            "range": "101 – 150",
+            "label_ar": "غير صحية للجموع الذين يعانون من الحساسية المفرطة",
+            "label_en": "Unhealthy for Sensitive Groups",
+            "desc_ar": "عموم الجمهور والأفراد الذين يعانون من الحساسية المفرطة على وجه الخصوص معرضون لخطر الإصابة بتهيج ومشاكل تنفسية.",
+            "desc_en": "Members of sensitive groups may experience health effects.",
+            "bg":   "#FF7E00",
+            "face": "#FF7E00",
+            "mask": False,
+            "tc":   "#000000",
+        },
+        {
+            "range": "151 – 200",
+            "label_ar": "جودة الهواء من غير صحية",
+            "label_en": "Unhealthy",
+            "desc_ar": "يزداد احتمال حدوث آثار ضارة وتفاقم في مشكلات القلب والرئتين بين عموم الجمهور وخاصة في المجموعات الحساسة.",
+            "desc_en": "Everyone may begin to experience health effects.",
+            "bg":   "#FF0000",
+            "face": "#FF0000",
+            "mask": True,
+            "tc":   "#FFFFFF",
+        },
+        {
+            "range": "201 – 300",
+            "label_ar": "300 غير صحية للغاية",
+            "label_en": "Very Unhealthy",
+            "desc_ar": "سيتأثر عموم الجمهور بشكل ملحوظ. الفئات التحسس من الانخفاض من الأنشطة. ينبغي أن يظل هؤلاء الأفراد في منازلهم مع تقييد أنشطتهم.",
+            "desc_en": "Health alert: everyone may experience more serious effects.",
+            "bg":   "#8F3F97",
+            "face": "#8F3F97",
+            "mask": True,
+            "tc":   "#FFFFFF",
+        },
+        {
+            "range": "301 – 500",
+            "label_ar": "جودة الهواء من 301 – 500 خطيرة",
+            "label_en": "Hazardous",
+            "desc_ar": "خطيرة. يتعرض عموم الجمهور والمجموعات الحساسة لمخاطر شديدة لتعرضهم لتهجمات قوية وآثار صحية ضارة. يجب على الجميع تجنب ممارسة الرياضة والبقاء في الداخل.",
+            "desc_en": "Health warnings of emergency conditions. Everyone is at risk.",
+            "bg":   "#7E0023",
+            "face": "#7E0023",
+            "mask": True,
+            "tc":   "#FFFFFF",
+        },
     ]
 
-    for i, level in enumerate(AQI_LEVELS):
-        row = len(AQI_LEVELS) - i - 1
-        y = row + 0.15
+    n = len(rows)
+    row_h    = 1.10   # height per row
+    icon_w   = 1.10   # width of icon column
+    total_w  = 10.0
+    total_h  = n * row_h + 1.0   # +1 for title
 
-        # colored box
-        box = FancyBboxPatch((0.1, y), 9.8, 0.78,
-                             boxstyle="round,pad=0.05",
-                             facecolor=level["color"],
-                             edgecolor="white", linewidth=0.8, zorder=2)
-        ax.add_patch(box)
+    fig, ax = plt.subplots(figsize=(9, total_h * 0.72), facecolor="white")
+    ax.set_facecolor("white")
+    ax.set_xlim(0, total_w)
+    ax.set_ylim(0, total_h)
+    ax.axis("off")
+    fig.patch.set_facecolor("white")
 
-        # range + label
-        lo, hi = level["range"]
-        ax.text(0.35, y + 0.52, f"{lo} – {hi}",
-                ha="left", va="center", fontsize=11, fontweight="bold",
-                color=level["text_color"])
-        short_label = level["label"].split("\n")[-1]  # Arabic part
-        ax.text(0.35, y + 0.24, short_label,
-                ha="left", va="center", fontsize=9,
-                color=level["text_color"], style="italic")
+    # ── Title bar ──────────────────────────────────────────────────────────
+    title_y = total_h - 0.65
+    title_box = FancyBboxPatch((0, total_h - 0.85), total_w, 0.85,
+                               boxstyle="square,pad=0",
+                               facecolor="#f0f0f0", edgecolor="#cccccc",
+                               linewidth=0.5, zorder=1)
+    ax.add_patch(title_box)
+    ax.text(total_w / 2, title_y, "دليل مؤشر جودة الهواء  AQI",
+            ha="center", va="center", fontsize=15, fontweight="bold",
+            color="#222222", fontproperties=_arabic_font())
 
-        # description text
-        desc = descriptions[i]
-        ax.text(5.0, y + 0.39, desc,
-                ha="center", va="center", fontsize=7,
-                color=level["text_color"], wrap=True,
-                multialignment="center",
-                fontproperties=_arabic_font())
+    # ── Rows ───────────────────────────────────────────────────────────────
+    for i, row in enumerate(rows):
+        # rows drawn top-to-bottom (row 0 = top = index 0 in list)
+        y_top = total_h - 0.85 - (i + 1) * row_h
+        y_bot = y_top
+        yc    = y_bot + row_h / 2   # vertical centre of row
 
-    plt.savefig(f"{save_path}/02_aqi_reference_card.png", dpi=150,
-                bbox_inches="tight", facecolor="#1c1c1c")
+        # ── thin separator line ──
+        ax.axhline(y_top + row_h, color="#dddddd", linewidth=0.5, zorder=0)
+
+        # ── icon square (left side) ──
+        icon_rect = FancyBboxPatch(
+            (0.08, y_bot + 0.07), icon_w - 0.12, row_h - 0.14,
+            boxstyle="round,pad=0.04",
+            facecolor=row["bg"], edgecolor="none", zorder=2
+        )
+        ax.add_patch(icon_rect)
+
+        # ── face drawing (simple SVG-style with matplotlib patches) ──
+        cx = 0.08 + (icon_w - 0.12) / 2          # face centre x
+        cy = yc                                    # face centre y
+        face_r  = 0.30
+        eye_r   = 0.045
+        fc_face = "white" if row["mask"] else row["bg"]
+        ec_face = "#ffffff" if row["mask"] else _darken(row["bg"], 0.55)
+
+        # outer circle
+        face_circle = plt.Circle((cx, cy), face_r,
+                                 facecolor=fc_face,
+                                 edgecolor=ec_face,
+                                 linewidth=1.8, zorder=3)
+        ax.add_patch(face_circle)
+
+        eye_col = ec_face
+
+        if not row["mask"]:
+            # eyes
+            ax.add_patch(plt.Circle((cx - 0.10, cy + 0.09), eye_r,
+                                    facecolor=eye_col, zorder=4))
+            ax.add_patch(plt.Circle((cx + 0.10, cy + 0.09), eye_r,
+                                    facecolor=eye_col, zorder=4))
+            # mouth — simple arc using bezier
+            import matplotlib.patches as mpatches2
+            from matplotlib.path import Path
+            if i <= 1:   # smile
+                verts = [(cx - 0.13, cy - 0.05),
+                         (cx,        cy - 0.17),
+                         (cx + 0.13, cy - 0.05)]
+                codes = [Path.MOVETO, Path.CURVE3, Path.CURVE3]
+            else:        # frown / straight
+                verts = [(cx - 0.13, cy - 0.13),
+                         (cx,        cy - 0.05),
+                         (cx + 0.13, cy - 0.13)]
+                codes = [Path.MOVETO, Path.CURVE3, Path.CURVE3]
+            mouth_path = Path(verts, codes)
+            mouth_patch = mpatches2.PathPatch(mouth_path, facecolor="none",
+                                              edgecolor=eye_col, linewidth=1.8, zorder=4)
+            ax.add_patch(mouth_patch)
+        else:
+            # mask rectangle
+            mask_rect = FancyBboxPatch(
+                (cx - 0.22, cy - 0.18), 0.44, 0.28,
+                boxstyle="round,pad=0.03",
+                facecolor=_darken(row["bg"], 0.6),
+                edgecolor=_darken(row["bg"], 0.4),
+                linewidth=1.0, zorder=4
+            )
+            ax.add_patch(mask_rect)
+            # eyes above mask
+            ax.add_patch(plt.Circle((cx - 0.10, cy + 0.14), eye_r,
+                                    facecolor="white", zorder=5))
+            ax.add_patch(plt.Circle((cx + 0.10, cy + 0.14), eye_r,
+                                    facecolor="white", zorder=5))
+            # mask straps
+            ax.plot([cx - 0.22, cx - 0.30], [cy,      cy + 0.10],
+                    color=_darken(row["bg"], 0.5), linewidth=1.2, zorder=4)
+            ax.plot([cx + 0.22, cx + 0.30], [cy,      cy + 0.10],
+                    color=_darken(row["bg"], 0.5), linewidth=1.2, zorder=4)
+
+        # ── text area (right of icon) ──
+        tx = icon_w + 0.20
+        tr = total_w - 0.15
+
+        # range bold
+        lo_hi = row["range"]
+        ax.text(tr, yc + 0.27, lo_hi,
+                ha="right", va="center", fontsize=11, fontweight="bold",
+                color="#111111")
+
+        # Arabic label (bold for level name)
+        ax.text(tx, yc + 0.27, row["label_ar"],
+                ha="left", va="center", fontsize=9, fontweight="bold",
+                color="#111111", fontproperties=_arabic_font())
+
+        # Arabic description (smaller, grey)
+        _wrapped_text(ax, tx, tr, yc - 0.05, row["desc_ar"],
+                      fontsize=7.5, color="#444444",
+                      max_width_chars=82)
+
+    # bottom border
+    ax.axhline(0, color="#dddddd", linewidth=0.5)
+
+    plt.tight_layout(pad=0.3)
+    plt.savefig(f"{save_path}/02_aqi_reference_card.png", dpi=180,
+                bbox_inches="tight", facecolor="white")
     plt.close()
     print(f"  ✔  Saved: {save_path}/02_aqi_reference_card.png")
 
@@ -594,14 +744,14 @@ def plot_official_report(data: dict, save_path: str = "output"):
     header_ax.set_facecolor("#003366")
     header_ax.axis("off")
     header_ax.text(
-        0.5, 0.6,
-        "تقرير جودة الهواء من محطة المستنصرية — قسم علوم الجو / كلية العلوم ب",
+        0.5, 0.68,
+        "تقرير جودة الهواء — محطة علوم الجو التعليمية  |  كلية العلوم / الجامعة المستنصرية",
         ha="center", va="center", fontsize=13, color="white",
         fontweight="bold", fontproperties=_arabic_font()
     )
     header_ax.text(
-        0.5, 0.2,
-        "بالتعاون مع وزارة البيئة / مديرية البيئة الحضرية  |  قسم مراقبة نوعية الهواء والضوضاء",
+        0.5, 0.35,
+        "بالتعاون مع وزارة البيئة / مديرية البيئة الحضرية  —  قسم مراقبة نوعية الهواء والضوضاء",
         ha="center", va="center", fontsize=9, color="#aad4ff",
         fontproperties=_arabic_font()
     )
@@ -680,6 +830,26 @@ def _arabic_font():
         return FontProperties(family="DejaVu Sans")
     except Exception:
         return None
+
+def _darken(hex_color: str, factor: float = 0.6) -> str:
+    """Return a darker version of a hex colour (factor 0..1, lower = darker)."""
+    hex_color = hex_color.lstrip("#")
+    r, g, b = [int(hex_color[i:i+2], 16) for i in (0, 2, 4)]
+    r = int(r * factor); g = int(g * factor); b = int(b * factor)
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+def _wrapped_text(ax, x_left: float, x_right: float, y: float,
+                  text: str, fontsize: float = 7.5,
+                  color: str = "#444444", max_width_chars: int = 80):
+    """Draw Arabic text, wrapping at max_width_chars onto multiple lines."""
+    import textwrap
+    available = x_right - x_left
+    lines = textwrap.wrap(text, width=max_width_chars)
+    line_h = fontsize / 72 * 1.55   # approx inches → data units
+    for j, line in enumerate(lines):
+        ax.text(x_left, y - j * line_h * 0.55, line,
+                ha="left", va="top", fontsize=fontsize,
+                color=color, fontproperties=_arabic_font())
 
 def _style_ax(ax, bg_color):
     ax.set_facecolor(bg_color)
@@ -799,11 +969,12 @@ def main(inputs: list, output_dir: str = "output") -> None:
     output_dir  : root output folder; each file gets its own sub-folder inside
     """
     banner = [
-        "╔══════════════════════════════════════════════════════════╗",
-        "║   EnviroAI — محطة علوم الجو — الجامعة المستنصرية        ║",
-        "║   Air Quality & Weather Analysis System  |  v2.0  |  2026║",
-        "║   كلية العلوم — قسم مراقبة نوعية الهواء والضوضاء       ║",
-        "╚══════════════════════════════════════════════════════════╝",
+        "╔══════════════════════════════════════════════════════════════╗",
+        "║   EnviroAI — Air Quality & Weather Analysis System  v2.0    ║",
+        "║   كلية العلوم / الجامعة المستنصرية  —  بغداد / العراق       ║",
+        "║   بالتعاون مع وزارة البيئة / مديرية البيئة الحضرية           ║",
+        "║   قسم مراقبة نوعية الهواء والضوضاء                           ║",
+        "╚══════════════════════════════════════════════════════════════╝",
     ]
     print("\n" + "\n".join(banner) + "\n")
 
