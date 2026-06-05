@@ -1,1 +1,1 @@
-web: gunicorn enviro_ai_full:server
+web: gunicorn enviroai_analysis:server
