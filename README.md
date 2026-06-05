@@ -1,155 +1,94 @@
-# 🌍 EnviroAI — محطة علوم الجو التعليمية
-### كلية العلوم  / الجامعة المستنصرية
+<div align="center">
 
-> **Air Quality & Weather Analysis System**  
-> بالتعاون مع وزارة البيئة / مديرية البيئة الحضرية — قسم مراقبة نوعية الهواء والضوضاء
+<h1>🌍 EnviroAI</h1>
+<h3>Air Quality & Weather Analysis System</h3>
+
+<p>
+  <b>كلية العلوم / الجامعة المستنصرية — بغداد / العراق</b><br/>
+  بالتعاون مع <b>وزارة البيئة / مديرية البيئة الحضرية</b><br/>
+  قسم مراقبة نوعية الهواء والضوضاء
+</p>
+
+<p>
+  <img src="https://img.shields.io/badge/Python-3.9%2B-blue?logo=python"/>
+  <img src="https://img.shields.io/badge/Dash-2.14%2B-informational?logo=plotly"/>
+  <img src="https://img.shields.io/badge/Deploy-Railway-blueviolet?logo=railway"/>
+  <img src="https://img.shields.io/badge/AQI-Official%20Scale-orange"/>
+</p>
+
+</div>
 
 ---
 
-## 📌 نظرة عامة | Overview
+## 🚀 نشر التطبيق على Railway
 
-نظام Python كامل لتحليل وتصوير بيانات جودة الهواء والطقس المُجمَّعة من محطة الرصد التعليمية في الجامعة المستنصرية — بغداد / العراق.
+### 1. رفع على GitHub
+```bash
+git init
+git add .
+git commit -m "initial: EnviroAI Dash web app"
+git remote add origin https://github.com/USERNAME/enviroai.git
+git push -u origin main
+```
 
-يعتمد النظام على **رموز AQI الرسمية** (المقياس الدولي لجودة الهواء) ويُصدر:
-- 5 لوحات تحليلية احترافية (PNG)
-- ملف CSV يومي مُعالَج مع مستوى AQI لكل يوم
-- تقرير بأسلوب التقارير الرسمية
+### 2. ربط Railway
+1. افتح [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub**
+2. اختر المستودع
+3. Railway يكتشف `Procfile` تلقائياً ويشغّل:
+   ```
+   web: gunicorn app:server
+   ```
+4. **بعد النشر يظهر رابط تلقائياً** مثل: `https://enviroai-xxxx.up.railway.app`
 
 ---
 
-## 🎨 رموز AQI المعتمدة | Official AQI Color Scale
+## 📁 هيكل الملفات
+
+```
+enviroai/
+├── app.py            ← التطبيق الرئيسي (Dash + gunicorn server)
+├── requirements.txt  ← المتطلبات
+├── Procfile          ← أمر تشغيل Railway
+├── .gitignore
+└── README.md
+```
+
+---
+
+## ⚙️ متطلبات Railway
+
+| الملف | المحتوى |
+|-------|---------|
+| `Procfile` | `web: gunicorn app:server` |
+| `requirements.txt` | dash, plotly, pandas, gunicorn … |
+| `app.py` | يحتوي `server = app.server` (مطلوب لـ gunicorn) |
+
+---
+
+## 📊 مميزات التطبيق
+
+- **رفع أي ملف Excel** مباشرة من المتصفح
+- **5 تبويبات تفاعلية**: نظرة عامة — جودة الهواء — مستوى الخطر — تنبؤ — دليل AQI
+- **رموز AQI الرسمية** بالألوان والوجوه التحذيرية
+- **تنبؤ 7 أيام** مع فترة ثقة 95%
+- يعمل على **أي متصفح** بدون تثبيت
+
+---
+
+## 📋 متطلبات ملف البيانات
+
+يجب أن يحتوي ملف Excel على الأعمدة:
+`Date, Time, Temperature, Humidity, AQI, CO, SMOKE, RiskIndex, RiskLevel`
+
+---
+
+## 🎨 رموز AQI المعتمدة
 
 | النطاق | المستوى | اللون |
-|--------|---------|-------|
-| 0 – 50   | جيد / Good                        | 🟢 `#00E400` |
-| 51 – 100 | معتدل / Moderate                  | 🟡 `#FFFF00` |
-| 101 – 150| غير صحي للحساسين / Unhealthy (Sensitive) | 🟠 `#FF7E00` |
-| 151 – 200| غير صحي / Unhealthy               | 🔴 `#FF0000` |
-| 201 – 300| غير صحي جداً / Very Unhealthy     | 🟣 `#8F3F97` |
-| 301 – 500| خطير / Hazardous                  | 🔴 `#7E0023` |
-
----
-
-## 📊 المخرجات | Output Figures
-
-| الملف | الوصف |
-|-------|-------|
-| `01_aqi_dashboard.png`      | لوحة تحكم شاملة: AQI يومي + حرارة + CO + دخان + توزيع الخطر + نمط ساعي + اتجاه |
-| `02_aqi_reference_card.png` | بطاقة مرجعية رسمية لمقياس AQI بالعربية والإنجليزية |
-| `03_pollutant_analysis.png` | تحليل الملوثات: AQI vs Risk Index، CO & Smoke، Temp/Humidity scatter، أيام الخطر |
-| `04_forecast_report.png`    | تحليل الاتجاه الخطي + التنبؤ بـ AQI لـ 7 أيام مع فترة ثقة 95% |
-| `05_official_report.png`    | تقرير بأسلوب التقارير الرسمية للجامعة |
-| `daily_summary.csv`         | ملخص يومي مُعالَج مع مستوى AQI ومنحنى الاتجاه |
-
----
-
-## 🚀 التثبيت والتشغيل | Installation & Usage
-
-### 1. استنساخ المستودع
-```bash
-git clone https://github.com/<YOUR_USERNAME>/enviroai-mustansiriyah.git
-cd enviroai-mustansiriyah
-```
-
-### 2. تثبيت المتطلبات
-```bash
-pip install -r requirements.txt
-```
-
-### 3. تشغيل التحليل
-
-**ملف واحد:**
-```bash
-python enviroai_analysis.py --input EnviroAI_2026-06-05.xlsx
-```
-
-**ملفات متعددة (أكثر من تاريخ رصد):**
-```bash
-python enviroai_analysis.py --input april.xlsx may.xlsx june.xlsx
-```
-
-**كل ملفات xlsx في مجلد (glob):**
-```bash
-python enviroai_analysis.py --input data/*.xlsx --output output
-```
-
-**الوضع التفاعلي (بدون --input):**
-```bash
-python enviroai_analysis.py
-# سيطلب منك إدخال مسار كل ملف يدوياً
-```
-
-### الخيارات
-| الخيار | الاختصار | الوصف | القيمة الافتراضية |
-|--------|----------|-------|-------------------|
-| `--input`  | `-i` | مسار ملف واحد أو أكثر (.xlsx) | ← يطلب تفاعلياً |
-| `--output` | `-o` | مجلد الحفظ (كل ملف يحصل على مجلد فرعي) | `output/` |
-
-### هيكل المخرجات عند معالجة ملفات متعددة
-```
-output/
-├── EnviroAI_April/
-│   ├── 01_aqi_dashboard.png
-│   ├── 02_aqi_reference_card.png
-│   └── daily_summary.csv
-├── EnviroAI_May/
-│   ├── 01_aqi_dashboard.png
-│   └── ...
-└── EnviroAI_June/
-    └── ...
-```
-
----
-
-## 📁 هيكل المشروع | Project Structure
-
-```
-enviroai-mustansiriyah/
-├── enviroai_analysis.py        # ← الكود الرئيسي
-├── requirements.txt            # ← المتطلبات
-├── README.md                   # ← هذا الملف
-├── EnviroAI_2026-06-05.xlsx   # ← ملف البيانات (غير مرفوع)
-└── output/
-    ├── 01_aqi_dashboard.png
-    ├── 02_aqi_reference_card.png
-    ├── 03_pollutant_analysis.png
-    ├── 04_forecast_report.png
-    ├── 05_official_report.png
-    └── daily_summary.csv
-```
-
----
-
-## 📋 المتطلبات | Requirements
-
-```
-pandas>=2.0.0
-openpyxl>=3.1.0
-matplotlib>=3.7.0
-seaborn>=0.12.0
-numpy>=1.24.0
-scipy>=1.10.0
-Pillow>=10.0.0
-```
-
----
-
-## 📈 إحصاءات البيانات | Data Summary (April–May 2026)
-
-| المؤشر | القيمة |
-|--------|--------|
-| إجمالي القراءات  | 4,910  |
-| متوسط AQI        | 94.6   |
-| أعلى AQI         | 462 (16 أبريل — طوارئ) |
-| متوسط الحرارة    | 26.8 °C |
-| أيام خطرة        | 8 / 13 |
-| اتجاه AQI        | تصاعدي (+18/يوم) |
-
----
-
-##
-
-## 📜 الترخيص | License
-
-للأغراض الأكاديمية والبحثية — كلية العلوم  / الجامعة المستنصرية  
-For academic and research purposes — College of Science B / Al-Mustansiriyah University
+|:------:|---------|:-----:|
+| 0–50 | جيد / Good | 🟢 |
+| 51–100 | معتدل / Moderate | 🟡 |
+| 101–150 | غير صحي للحساسين | 🟠 |
+| 151–200 | غير صحي / Unhealthy | 🔴 |
+| 201–300 | غير صحي جداً / Very Unhealthy | 🟣 |
+| 301–500 | خطير / Hazardous | 🔴 |

@@ -1,25 +1,11 @@
-# Python
 __pycache__/
 *.py[cod]
-*.egg-info/
-dist/
-build/
 .env
 venv/
 env/
-
-# Data files (add manually if needed)
 *.xlsx
 *.xls
-
-# Output (regenerate via script)
-output/
-
-# OS
 .DS_Store
 Thumbs.db
-
-# IDE
 .vscode/
 .idea/
-*.swp
