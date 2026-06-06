@@ -10,3 +10,16 @@ chardet>=5.0.0
 reportlab>=4.0.0
 arabic-reshaper>=3.0.0
 python-bidi>=0.4.2
+dash
+dash-bootstrap-components
+pandas
+numpy
+plotly
+scipy
+chardet
+arabic-reshaper
+python-bidi
+reportlab
+openpyxl
+xlrd
+gunicorn
