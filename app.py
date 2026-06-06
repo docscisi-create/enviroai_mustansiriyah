@@ -1216,6 +1216,21 @@ def build_dashboard(session_id: str):
 
     report_card = generate_report(df, daily, ftype)
 
+    dl_btn = dbc.Row(dbc.Col(
+        dbc.Button([
+            "⬇️  تنزيل التقرير التحليلي (PDF)",
+        ], id="btn-pdf", color="primary", size="md", className="mb-3",
+           style={"fontWeight": "700", "borderRadius": "10px", "padding": "10px 24px"}),
+        width="auto", className="d-flex justify-content-start",
+    ))
+
+    return dbc.Container([
+        html.Hr(style={"margin": "8px 0 14px"}),
+        report_card,
+        dl_btn,
+        dbc.Tabs(tabs_list, active_tab="overview", style={"fontWeight": "600"}),
+    ], fluid=True, style={"paddingBottom": "50px"})
+
 
 # ══════════════════════════════════════════════
 #  APP LAYOUT
