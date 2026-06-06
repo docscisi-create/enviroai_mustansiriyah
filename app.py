@@ -84,7 +84,7 @@ REQUIRED_XL = {
 }
 
 _PDF_FONT_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "assets", "Arabic.ttf"
+    os.path.dirname(os.path.abspath(__file__)),  "Arabic.ttf"
 )
 _PDF_FONTS_READY = False
 
