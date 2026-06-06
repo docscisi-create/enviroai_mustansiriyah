@@ -383,6 +383,419 @@ def welcome_screen():
         ], width={"size":10,"offset":1}), className="my-4"),
     ], fluid=True)
 
+
+# ══════════════════════════════════════════════
+#  PDF REPORT GENERATOR
+# ══════════════════════════════════════════════
+import arabic_reshaper as _ar_reshaper
+from bidi.algorithm import get_display as _bidi_display
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table,
+                                 TableStyle, HRFlowable)
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib import colors as rl_colors
+from reportlab.lib.units import cm
+from reportlab.lib.enums import TA_RIGHT, TA_CENTER
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+_PDF_FONT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "Arabic.ttf")
+_PDF_FONTS_READY = False
+
+def _pdf_ensure_fonts():
+    global _PDF_FONTS_READY
+    if not _PDF_FONTS_READY:
+        pdfmetrics.registerFont(TTFont("Ar", _PDF_FONT_PATH))
+        _PDF_FONTS_READY = True
+
+def _a(text):
+    """Arabic reshape + bidi for PDF"""
+    return _bidi_display(_ar_reshaper.reshape(str(text)))
+
+def _ps(name, **kw):
+    base = dict(fontName="Ar", fontSize=10, alignment=TA_RIGHT, leading=20, textColor=rl_colors.HexColor("#222"))
+    base.update(kw)
+    return ParagraphStyle(name, **base)
+
+def build_pdf_report(df, daily, ftype, filename="بيانات"):
+    _pdf_ensure_fonts()
+    from scipy import stats as _sp
+
+    # Stats
+    aqi      = df["AQI"]
+    mu       = aqi.mean(); mx = aqi.max(); mn = aqi.min()
+    std      = aqi.std();  cv = std/mu*100
+    n_days   = df["DateStr"].nunique()
+    n_read   = len(df)
+    d0       = df["DateStr"].min(); d1 = df["DateStr"].max()
+    total    = len(df)
+    cnt      = df["RiskLevel"].value_counts()
+    pct      = lambda k: cnt.get(k,0)/total*100
+
+    x = np.arange(len(daily)); y = daily["AQI_mean"].values
+    slope, intercept, r, p_val, _ = _sp.linregress(x, y)
+    tdir = "تصاعدياً" if slope>0.5 else ("تنازلياً" if slope<-0.5 else "مستقراً نسبياً")
+    tsig = "ذو دلالة إحصائية (p<0.05)" if p_val<0.05 else "غير ذي دلالة إحصائية (p≥0.05)"
+
+    hrly  = df.dropna(subset=["Hour"]).groupby("Hour")["AQI"].mean()
+    ph    = int(hrly.idxmax()); lh = int(hrly.idxmin())
+    fmth  = lambda h: f"{'12' if h==12 else h%12 or h}:00 {'م' if h>=12 else 'ص'}"
+
+    if   mu<=50:  lvl="جيد";             lvc=rl_colors.HexColor("#00b300"); rc=rl_colors.HexColor("#27ae60")
+    elif mu<=100: lvl="معتدل";           lvc=rl_colors.HexColor("#b8a000"); rc=rl_colors.HexColor("#b8a000")
+    elif mu<=150: lvl="غير صحي للحساسين";lvc=rl_colors.HexColor("#FF7E00"); rc=rl_colors.HexColor("#FF7E00")
+    elif mu<=200: lvl="غير صحي";         lvc=rl_colors.HexColor("#FF0000"); rc=rl_colors.HexColor("#c0392b")
+    else:         lvl="خطير";            lvc=rl_colors.HexColor("#8F3F97"); rc=rl_colors.HexColor("#8F3F97")
+
+    if   mu<=50:  concl="تُعدّ جودة الهواء خلال فترة الدراسة جيدة وآمنة للجمهور بصفة عامة.";        recc="مواصلة المراقبة الدورية والحفاظ على المستويات الحالية."
+    elif mu<=100: concl="جودة الهواء مقبولة غير أن بعض الملوثات قد تشكّل خطراً على الفئات الحساسة."; recc="ينصح الأفراد الحساسون بتقليل الأنشطة الخارجية في ساعات الذروة."
+    elif mu<=150: concl="جودة الهواء غير صحية للفئات الحساسة وتتطلب إجراءات وقائية.";               recc="يُوصى بتقليل التعرض للهواء الخارجي وارتداء الكمامات في ساعات الذروة."
+    else:         concl="جودة الهواء غير صحية وتستدعي تدخلاً عاجلاً من الجهات المختصة.";            recc="يُوصى بالإعلان عن تنبيه بيئي وتجنّب الأنشطة الخارجية والتنسيق مع مديرية البيئة."
+
+    C_BLUE  = rl_colors.HexColor("#1a3a6b"); C_LBLUE = rl_colors.HexColor("#2c5f9e")
+    C_BG    = rl_colors.HexColor("#eef2ff"); C_LINE  = rl_colors.HexColor("#c8d8f8")
+    C_RED   = rl_colors.HexColor("#c0392b"); C_GREEN = rl_colors.HexColor("#27ae60")
+    C_PURP  = rl_colors.HexColor("#8F3F97")
+
+    ST = _ps("title", fontSize=18, alignment=TA_CENTER, textColor=C_BLUE, leading=28)
+    SS = _ps("sub",   fontSize=10, alignment=TA_CENTER, textColor=C_LBLUE, leading=16)
+    SM = _ps("mini",  fontSize=8,  alignment=TA_CENTER, textColor=rl_colors.HexColor("#888"), leading=14)
+    SH = _ps("head",  fontSize=12, textColor=C_BLUE, leading=24, spaceBefore=10, spaceAfter=4)
+    SB = _ps("body",  fontSize=10, leading=22, spaceAfter=4)
+    SF = _ps("foot",  fontSize=7.5, alignment=TA_CENTER, textColor=rl_colors.HexColor("#888"), leading=13)
+
+    def HR(): return HRFlowable(width="100%", thickness=0.8, color=C_LINE, spaceAfter=4, spaceBefore=4)
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            rightMargin=2*cm, leftMargin=2*cm,
+                            topMargin=1.8*cm, bottomMargin=1.8*cm,
+                            title="التقرير التحليلي — EnviroAI")
+    story = []
+
+    # Header banner
+    hdr = Table([[
+        Paragraph(_a("كلية العلوم / الجامعة المستنصرية\nبالتعاون مع وزارة البيئة"),
+                  _ps("hh", fontSize=10, alignment=TA_RIGHT, textColor=rl_colors.white, leading=18)),
+        Paragraph(_a("EnviroAI"), _ps("hh2", fontSize=16, alignment=TA_CENTER, textColor=rl_colors.white, leading=24)),
+    ]], colWidths=[11*cm, 5.5*cm])
+    hdr.setStyle(TableStyle([
+        ("BACKGROUND",(0,0),(-1,-1),C_BLUE),
+        ("TOPPADDING",(0,0),(-1,-1),10),("BOTTOMPADDING",(0,0),(-1,-1),10),
+        ("LEFTPADDING",(0,0),(-1,-1),12),("RIGHTPADDING",(0,0),(-1,-1),12),
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+    ]))
+    story += [hdr, Spacer(1,0.4*cm),
+              Paragraph(_a("التقرير التحليلي الآلي"), ST),
+              Paragraph(_a("Air Quality Automated Analytical Report"), SS),
+              Paragraph(_a(f"الملف: {filename}"), SM),
+              Spacer(1,0.3*cm), HR()]
+
+    # 1 — Overview
+    story.append(Paragraph(_a("١. نظرة عامة على البيانات"), SH))
+    story.append(Paragraph(_a(
+        f"يشتمل هذا التقرير على تحليل بيانات جودة الهواء المرصودة خلال الفترة من {d0} إلى {d1}، "
+        f"بإجمالي {n_read:,} قراءة موزّعة على {n_days} يوماً من الرصد المستمر. "
+        f"مصدر البيانات: {'محطة AirLink المتنقلة (CSV)' if ftype=='csv' else 'المحطة الثابتة (Excel)'}."
+    ), SB))
+    story.append(HR())
+
+    # 2 — Descriptive stats
+    story.append(Paragraph(_a("٢. الإحصاء الوصفي لمؤشر جودة الهواء (AQI)"), SH))
+    tbl2 = Table([
+        [_a("المتوسط"), _a("الحد الأقصى"), _a("الحد الأدنى"), _a("الانحراف المعياري"), _a("معامل التباين")],
+        [f"{mu:.1f}", f"{mx:.0f}", f"{mn:.0f}", f"{std:.1f}", f"{cv:.1f}%"],
+        [_a(lvl), _a(get_lv(mx)["ar"]), _a(get_lv(mn)["ar"]), "", ""],
+    ], colWidths=[3.3*cm]*5)
+    tbl2.setStyle(TableStyle([
+        ("FONTNAME",(0,0),(-1,-1),"Ar"),("FONTSIZE",(0,0),(-1,0),9),
+        ("FONTSIZE",(0,1),(-1,1),14),("FONTSIZE",(0,2),(-1,2),8),
+        ("BACKGROUND",(0,0),(-1,0),C_BG),("TEXTCOLOR",(0,0),(-1,0),C_BLUE),
+        ("ALIGN",(0,0),(-1,-1),"CENTER"),("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("GRID",(0,0),(-1,-1),0.5,C_LINE),
+        ("TOPPADDING",(0,0),(-1,-1),7),("BOTTOMPADDING",(0,0),(-1,-1),7),
+        ("TEXTCOLOR",(0,1),(0,1),lvc),("TEXTCOLOR",(1,1),(1,1),C_RED),
+        ("TEXTCOLOR",(2,1),(2,1),C_GREEN),("TEXTCOLOR",(3,1),(3,1),C_PURP),
+    ]))
+    story.append(tbl2); story.append(Spacer(1,0.3*cm))
+    story.append(Paragraph(_a(
+        f"يبلغ المتوسط الحسابي {mu:.1f} ضمن فئة «{lvl}». "
+        f"الانحراف المعياري {std:.1f} ومعامل التباين {cv:.1f}%، مما يشير إلى "
+        + ("تذبذب واضح." if cv>40 else "استقرار نسبي.")
+    ), SB))
+    story.append(HR())
+
+    # 3 — Risk distribution
+    story.append(Paragraph(_a("٣. توزيع مستويات الخطر"), SH))
+    risk_rows = [[_a("المستوى"), _a("القراءات"), _a("النسبة٪")]]
+    for nm in ["آمن","متوسط","تحذير","حرج","طوارئ"]:
+        risk_rows.append([_a(nm), f"{cnt.get(nm,0):,}", f"{pct(nm):.1f}%"])
+    tbl3 = Table(risk_rows, colWidths=[4*cm,4*cm,4*cm])
+    tbl3.setStyle(TableStyle([
+        ("FONTNAME",(0,0),(-1,-1),"Ar"),("FONTSIZE",(0,0),(-1,-1),10),
+        ("BACKGROUND",(0,0),(-1,0),C_BG),("TEXTCOLOR",(0,0),(-1,0),C_BLUE),
+        ("ALIGN",(0,0),(-1,-1),"CENTER"),("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("GRID",(0,0),(-1,-1),0.5,C_LINE),
+        ("ROWBACKGROUNDS",(0,1),(-1,-1),[rl_colors.white,C_BG]),
+        ("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6),
+    ]))
+    story.append(tbl3); story.append(Spacer(1,0.25*cm))
+    story.append(Paragraph(_a(
+        f"نسبة القراءات الخطرة (حرج+طوارئ): {pct('حرج')+pct('طوارئ'):.1f}%  |  "
+        f"نسبة الآمنة: {pct('آمن'):.1f}%."
+    ), SB))
+    if "PM25" in df.columns and df["PM25"].notna().any():
+        pm25m = df["PM25"].mean(); pmex = (df["PM25"]>15).sum()
+        story.append(Paragraph(_a(
+            f"جسيمات PM2.5: متوسط {pm25m:.1f} μg/m³، تجاوزت حد منظمة الصحة العالمية في {pmex:,} قراءة "
+            f"({pmex/total*100:.1f}% من الوقت)."
+        ), SB))
+    story.append(HR())
+
+    # 4 — Trend
+    story.append(Paragraph(_a("٤. تحليل الاتجاه الزمني (OLS Linear Regression)"), SH))
+    story.append(Paragraph(_a(
+        f"جرى تطبيق نموذج الانحدار الخطي البسيط OLS على المتوسطات اليومية. "
+        f"النتيجة: الاتجاه {tdir} بمعدل {abs(slope):.2f} وحدة/يوم. "
+        f"R² = {r**2:.3f}، قيمة p = {p_val:.4f}، النموذج {tsig}."
+    ), SB))
+    story.append(Paragraph(_a(
+        f"ذروة التلوث عند {fmth(ph)} | أدنى قيمة عند {fmth(lh)}. "
+        "يعكس هذا النمط تأثير الأنشطة البشرية والظروف الجوية على تراكم الملوثات."
+    ), SB))
+    ols_t = Table([
+        [_a("المعامل"), _a("القيمة")],
+        [_a("الميل (slope)"),           f"{slope:.4f}"],
+        [_a("التقاطع (intercept)"),     f"{intercept:.2f}"],
+        [_a("معامل الارتباط r"),        f"{r:.4f}"],
+        [_a("معامل التحديد R²"),        f"{r**2:.4f}"],
+        [_a("p-value"),                  f"{p_val:.4f}"],
+    ], colWidths=[8*cm, 4.5*cm])
+    ols_t.setStyle(TableStyle([
+        ("FONTNAME",(0,0),(-1,-1),"Ar"),("FONTSIZE",(0,0),(-1,-1),9),
+        ("BACKGROUND",(0,0),(-1,0),C_BG),("TEXTCOLOR",(0,0),(-1,0),C_BLUE),
+        ("ALIGN",(0,0),(0,-1),"RIGHT"),("ALIGN",(1,0),(1,-1),"CENTER"),
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),("GRID",(0,0),(-1,-1),0.5,C_LINE),
+        ("ROWBACKGROUNDS",(0,1),(-1,-1),[rl_colors.white,C_BG]),
+        ("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5),
+    ]))
+    story.append(Spacer(1,0.2*cm)); story.append(ols_t); story.append(HR())
+
+    # 5 — Conclusion
+    story.append(Paragraph(_a("٥. الخلاصة والتوصيات"), SH))
+    ct = Table([
+        [Paragraph(_a("الخلاصة: "+concl), _ps("cx", fontSize=10, leading=20, textColor=rl_colors.white))],
+        [Paragraph(_a("التوصية: "+recc),  _ps("cy", fontSize=10, leading=20, textColor=rl_colors.white))],
+    ], colWidths=[16.5*cm])
+    ct.setStyle(TableStyle([
+        ("BACKGROUND",(0,0),(-1,0),rc),("BACKGROUND",(0,1),(-1,1),rc),
+        ("FONTNAME",(0,0),(-1,-1),"Ar"),
+        ("TOPPADDING",(0,0),(-1,-1),10),("BOTTOMPADDING",(0,0),(-1,-1),10),
+        ("LEFTPADDING",(0,0),(-1,-1),14),("RIGHTPADDING",(0,0),(-1,-1),14),
+        ("LINEBELOW",(0,0),(-1,0),1,rl_colors.white),
+    ]))
+    story.append(ct); story.append(Spacer(1,0.5*cm))
+    story.append(HRFlowable(width="100%", thickness=0.8, color=C_LINE))
+    story.append(Paragraph(_a(
+        "الخوارزميات: الإحصاء الوصفي (Descriptive Statistics) — الانحدار الخطي OLS — التحليل الساعي (Hourly Pattern Analysis)."
+    ), SF))
+    story.append(Paragraph(_a(
+        "EnviroAI — كلية العلوم / الجامعة المستنصرية — بالتعاون مع وزارة البيئة"
+    ), _ps("ff", fontSize=7, alignment=TA_CENTER, textColor=rl_colors.HexColor("#aaa"), leading=12)))
+
+    doc.build(story)
+    return buf.getvalue()
+
+
+def generate_report(df, daily, ftype):
+    from scipy import stats as sp
+
+    aqi        = df["AQI"]
+    aqi_mean   = aqi.mean()
+    aqi_max    = aqi.max()
+    aqi_min    = aqi.min()
+    aqi_std    = aqi.std()
+    aqi_cv     = aqi_std / aqi_mean * 100
+    n_days     = df["DateStr"].nunique()
+    n_readings = len(df)
+    date_start = df["DateStr"].min()
+    date_end   = df["DateStr"].max()
+    lv_mean    = get_lv(aqi_mean)
+    total      = len(df)
+    counts     = df["RiskLevel"].value_counts()
+    pct        = lambda k: counts.get(k, 0) / total * 100
+
+    # Trend regression
+    x = np.arange(len(daily))
+    y = daily["AQI_mean"].values
+    slope, intercept, r, p_val, _ = sp.linregress(x, y)
+    trend_dir = "تصاعدياً" if slope > 0.5 else ("تنازلياً" if slope < -0.5 else "مستقراً نسبياً")
+    trend_sig = "ذو دلالة إحصائية (p < 0.05)" if p_val < 0.05 else "غير ذي دلالة إحصائية (p ≥ 0.05)"
+
+    # Peak hour
+    hourly  = df.dropna(subset=["Hour"]).groupby("Hour")["AQI"].mean()
+    peak_h  = int(hourly.idxmax())
+    low_h   = int(hourly.idxmin())
+    fmt_h   = lambda h: f"{'12' if h==12 else h%12 or 12}:00 {'م' if h>=12 else 'ص'}"
+
+    # PM section
+    pm_items = []
+    if "PM25" in df.columns and df["PM25"].notna().any():
+        pm25_m    = df["PM25"].mean()
+        pm_exceed = (df["PM25"] > 15).sum()
+        pm_pct    = pm_exceed / total * 100
+        pm_items.append(html.Li([
+            html.B("جسيمات PM2.5: "),
+            f"بلغ متوسطها {pm25_m:.1f} μg/m³، وتجاوزت الحد الآمن لمنظمة الصحة العالمية (15 μg/m³) "
+            f"في {pm_exceed:,} قراءة ({pm_pct:.1f}٪ من الوقت).",
+        ]))
+
+    # Conclusion
+    if aqi_mean <= 50:
+        conclusion = "تُعدّ جودة الهواء خلال فترة الدراسة جيدة وآمنة للجمهور بصفة عامة."
+        rec = "مواصلة المراقبة الدورية والحفاظ على المستويات الحالية."
+        rec_color = "success"
+    elif aqi_mean <= 100:
+        conclusion = "جودة الهواء مقبولة، غير أن بعض الملوثات قد تشكّل خطراً محدوداً على الفئات الحساسة."
+        rec = "ينصح الأفراد الحساسون بتقليل الأنشطة الخارجية المجهِدة في ساعات الذروة."
+        rec_color = "warning"
+    elif aqi_mean <= 150:
+        conclusion = "جودة الهواء غير صحية للفئات الحساسة وتتطلب اتخاذ إجراءات وقائية."
+        rec = "يُوصى بتقليل التعرض للهواء الخارجي وارتداء الكمامات في ساعات الذروة."
+        rec_color = "warning"
+    else:
+        conclusion = "جودة الهواء غير صحية وتستدعي تدخلاً عاجلاً من الجهات المختصة."
+        rec = "يُوصى بالإعلان عن تنبيه بيئي وتجنّب الأنشطة الخارجية والتنسيق مع مديرية البيئة."
+        rec_color = "danger"
+
+    lv_color = lv_mean["color"] if lv_mean["color"] != "#FFFF00" else "#b8a000"
+
+    return dbc.Card([
+        dbc.CardHeader(dbc.Row([
+            dbc.Col(html.Div("📋", style={"fontSize":"1.5rem"}), width="auto"),
+            dbc.Col([
+                html.H5("التقرير التحليلي الآلي", className="mb-0",
+                        style={"color":"#1a3a6b","fontWeight":"700"}),
+                html.Small("تم توليده تلقائياً بواسطة نظام EnviroAI",
+                           style={"color":"#666"}),
+            ]),
+        ], align="center"),
+        style={"background":"#eef2ff","borderBottom":"2px solid #2c5f9e","padding":"12px 16px"}),
+
+        dbc.CardBody([
+
+            # 1 — Overview
+            html.H6("١. نظرة عامة على البيانات", className="fw-bold mb-2",
+                    style={"color":"#2c5f9e","borderBottom":"1px solid #dee2e6","paddingBottom":"4px"}),
+            html.P([
+                "يشتمل هذا التقرير على تحليل بيانات جودة الهواء المرصودة خلال الفترة من ",
+                html.B(date_start), " إلى ", html.B(date_end),
+                f"، بإجمالي ", html.B(f"{n_readings:,} قراءة"),
+                f" موزّعة على ", html.B(f"{n_days} يوماً"), " من الرصد المستمر.",
+                f" مصدر البيانات: {'محطة AirLink المتنقلة (CSV)' if ftype=='csv' else 'المحطة الثابتة (Excel)'}.",
+            ], style={"lineHeight":"1.9","textAlign":"justify"}),
+
+            # 2 — Descriptive Stats
+            html.H6("٢. الإحصاء الوصفي لمؤشر AQI", className="fw-bold mb-2 mt-3",
+                    style={"color":"#2c5f9e","borderBottom":"1px solid #dee2e6","paddingBottom":"4px"}),
+            dbc.Row([
+                dbc.Col(dbc.Card(dbc.CardBody([
+                    html.Div("المتوسط الحسابي", style={"fontSize":".7rem","color":"#888"}),
+                    html.Div(f"{aqi_mean:.1f}", style={"fontSize":"1.4rem","fontWeight":"700","color":lv_color}),
+                    html.Div(lv_mean["ar"], style={"fontSize":".68rem","color":"#555"}),
+                ], style={"textAlign":"center","padding":"8px"}),
+                style={"borderRadius":"10px","border":f"2px solid {lv_mean['color']}55"}), width=3),
+
+                dbc.Col(dbc.Card(dbc.CardBody([
+                    html.Div("الحد الأقصى", style={"fontSize":".7rem","color":"#888"}),
+                    html.Div(f"{aqi_max:.0f}", style={"fontSize":"1.4rem","fontWeight":"700","color":"#c0392b"}),
+                    html.Div(get_lv(aqi_max)["ar"], style={"fontSize":".68rem","color":"#555"}),
+                ], style={"textAlign":"center","padding":"8px"}),
+                style={"borderRadius":"10px","border":"2px solid #c0392b55"}), width=3),
+
+                dbc.Col(dbc.Card(dbc.CardBody([
+                    html.Div("الحد الأدنى", style={"fontSize":".7rem","color":"#888"}),
+                    html.Div(f"{aqi_min:.0f}", style={"fontSize":"1.4rem","fontWeight":"700","color":"#27ae60"}),
+                    html.Div(get_lv(aqi_min)["ar"], style={"fontSize":".68rem","color":"#555"}),
+                ], style={"textAlign":"center","padding":"8px"}),
+                style={"borderRadius":"10px","border":"2px solid #27ae6055"}), width=3),
+
+                dbc.Col(dbc.Card(dbc.CardBody([
+                    html.Div("الانحراف المعياري", style={"fontSize":".7rem","color":"#888"}),
+                    html.Div(f"{aqi_std:.1f}", style={"fontSize":"1.4rem","fontWeight":"700","color":"#8F3F97"}),
+                    html.Div(f"CV = {aqi_cv:.1f}٪", style={"fontSize":".68rem","color":"#555"}),
+                ], style={"textAlign":"center","padding":"8px"}),
+                style={"borderRadius":"10px","border":"2px solid #8F3F9755"}), width=3),
+            ], className="g-2 mb-2"),
+
+            html.P([
+                f"يبلغ المتوسط الحسابي لمؤشر جودة الهواء ",
+                html.B(f"{aqi_mean:.1f}"),
+                f" وهو يقع ضمن فئة ",
+                html.B(f"«{lv_mean['ar']}»", style={"color":lv_color}),
+                f". بلغ الانحراف المعياري {aqi_std:.1f} وحدة بمعامل تباين {aqi_cv:.1f}٪، مما يشير إلى ",
+                "تذبذب واضح في مستويات التلوث خلال فترة الرصد." if aqi_cv > 40
+                else "استقرار نسبي في مستويات التلوث خلال فترة الرصد.",
+            ], style={"lineHeight":"1.9","textAlign":"justify"}),
+
+            # 3 — Risk levels
+            html.H6("٣. توزيع مستويات الخطر", className="fw-bold mb-2 mt-3",
+                    style={"color":"#2c5f9e","borderBottom":"1px solid #dee2e6","paddingBottom":"4px"}),
+            html.Ul([
+                html.Li([html.B("آمن: "),        f"{pct('آمن'):.1f}٪ من إجمالي قراءات الرصد."]),
+                html.Li([html.B("متوسط: "),       f"{pct('متوسط'):.1f}٪."]),
+                html.Li([html.B("تحذير: "),       f"{pct('تحذير'):.1f}٪ (غير صحي للفئات الحساسة)."]),
+                html.Li([html.B("حرج: "),         f"{pct('حرج'):.1f}٪ (غير صحي للجمهور العام)."]),
+                html.Li([html.B("طوارئ: "),       f"{pct('طوارئ'):.1f}٪ (خطير جداً)."]),
+            ] + pm_items, style={"lineHeight":"2.0","paddingRight":"1.2rem"}),
+
+            html.P([
+                "بلغت نسبة القراءات ذات المستوى الخطر (حرج + طوارئ) ",
+                html.B(f"{pct('حرج')+pct('طوارئ'):.1f}٪", style={"color":"#c0392b"}),
+                f" من إجمالي فترة الرصد.",
+            ], style={"lineHeight":"1.9","textAlign":"justify"}),
+
+            # 4 — Trend
+            html.H6("٤. تحليل الاتجاه الزمني (الانحدار الخطي البسيط — OLS)", className="fw-bold mb-2 mt-3",
+                    style={"color":"#2c5f9e","borderBottom":"1px solid #dee2e6","paddingBottom":"4px"}),
+            html.P([
+                "جرى تطبيق نموذج الانحدار الخطي البسيط (Ordinary Least Squares) على المتوسطات اليومية. "
+                "أظهرت النتائج أن مؤشر AQI يسير ",
+                html.B(trend_dir, style={"color":"#FF7E00"}),
+                f" بمعدل تغيّر يبلغ ",
+                html.B(f"{abs(slope):.2f} وحدة/يوم"),
+                f"، ومعامل تحديد R² = {r**2:.3f}، والنموذج {trend_sig}.",
+            ], className="mb-2", style={"lineHeight":"1.9","textAlign":"justify"}),
+            html.P([
+                "كشف التحليل الساعي أن ذروة التلوث تبلغ أوجها عند ",
+                html.B(fmt_h(peak_h)),
+                "، وتنخفض إلى أدناها عند ",
+                html.B(fmt_h(low_h)),
+                ". يعكس هذا النمط تأثير الأنشطة البشرية والظروف الجوية على تراكم الملوثات.",
+            ], style={"lineHeight":"1.9","textAlign":"justify"}),
+
+            # 5 — Conclusion
+            html.H6("٥. الخلاصة والتوصيات", className="fw-bold mb-2 mt-3",
+                    style={"color":"#2c5f9e","borderBottom":"1px solid #dee2e6","paddingBottom":"4px"}),
+            dbc.Alert([
+                html.P(conclusion, className="mb-1 fw-bold"),
+                html.P([html.B("التوصية: "), rec], className="mb-0"),
+            ], color=rec_color, style={"borderRadius":"10px"}),
+
+            html.Hr(style={"margin":"12px 0 6px"}),
+            html.P(
+                "⚙️ الخوارزميات المستخدمة: الإحصاء الوصفي (Descriptive Statistics) — "
+                "الانحدار الخطي البسيط OLS (Simple Linear Regression) — "
+                "التحليل الساعي لأنماط التلوث (Hourly Pattern Analysis). "
+                "جميع الحسابات مبنية على بيانات الرصد الميداني المُدخَلة.",
+                style={"color":"#888","fontSize":".74rem","textAlign":"center","marginBottom":"0"},
+            ),
+
+        ], style={"padding":"20px"}),
+    ], style={"borderRadius":"14px","border":"1px solid #c8d8f8","marginBottom":"20px",
+              "boxShadow":"0 2px 12px rgba(28,58,107,.08)"})
+
+
 def build_dashboard(session_id):
     if session_id not in _CACHE:
         return welcome_screen()
@@ -443,8 +856,21 @@ def build_dashboard(session_id):
         fluid=True), label="📋 دليل AQI", tab_id="guide"),
     ]
 
+    report_card = generate_report(df, daily, ftype)
+
+    dl_btn = dbc.Row(dbc.Col(
+        dbc.Button([
+            html.I(className="", style={"marginLeft":"6px"}),
+            "⬇️  تنزيل التقرير التحليلي (PDF)",
+        ], id="btn-pdf", color="primary", size="md", className="mb-3",
+           style={"fontWeight":"700","borderRadius":"10px","padding":"10px 24px"}),
+        width="auto", className="d-flex justify-content-start"
+    ))
+
     return dbc.Container([
         html.Hr(style={"margin":"8px 0 14px"}),
+        report_card,
+        dl_btn,
         dbc.Tabs(tabs_list, active_tab="overview", style={"fontWeight":"600"}),
     ], fluid=True, style={"paddingBottom":"50px"})
 
@@ -507,6 +933,7 @@ app.layout = html.Div([
     HEADER,
     UPLOAD,
     dcc.Store(id="session-id"),   # stores only a short UUID string
+    dcc.Download(id="download-pdf"),
     html.Div(id="page-body", children=welcome_screen()),
 ], style={"fontFamily":"Cairo,Arial,sans-serif","direction":"rtl","background":"#f5f7fb","minHeight":"100vh"})
 
@@ -546,6 +973,25 @@ def on_upload(contents, filename, session_id):
 
     dashboard = build_dashboard(session_id or "default")
     return msg, dashboard
+
+# ── Callback: download PDF ───────────────────────────────────────────
+@app.callback(
+    Output("download-pdf","data"),
+    Input("btn-pdf","n_clicks"),
+    State("session-id","data"),
+    prevent_initial_call=True,
+)
+def download_pdf(n, session_id):
+    if not n or session_id not in _CACHE:
+        return no_update
+    data  = _CACHE[session_id]
+    df    = data["df"]
+    ftype = data["ftype"]
+    daily = daily_stats(df)
+    fname = f"تقرير_جودة_الهواء_{df['DateStr'].min()}_to_{df['DateStr'].max()}.pdf"
+    pdf_bytes = build_pdf_report(df, daily, ftype, fname)
+    return dcc.send_bytes(pdf_bytes, fname)
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
