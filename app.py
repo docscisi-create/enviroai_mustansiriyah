@@ -355,7 +355,7 @@ def welcome_screen():
                             html.Ul([
                                 html.Li("📊 نظرة عامة — مؤشرات AQI اليومي + درجة الحرارة + الملوثات"),
                                 html.Li("🌫️ PM2.5 / PM10 — جسيمات الغبار مع حدود منظمة الصحة العالمية"),
-                                html.Li("⏰  كيف يتغير AQI خلال 24 ساعة"),
+                                html.Li("⏰ نمط ساعي — كيف يتغير AQI خلال 24 ساعة"),
                                 html.Li("⚠️ مستوى الخطر — توزيع الفئات (آمن / تحذير / حرج ...)"),
                                 html.Li("📈 تنبؤ — تحليل الاتجاه + توقعات 7 أيام"),
                                 html.Li("📋 دليل AQI — شرح المقياس الرسمي بالألوان"),
@@ -430,7 +430,7 @@ def build_dashboard(session_id):
             label="🌫️ PM2.5/PM10", tab_id="pm"))
     tabs_list += [
         dbc.Tab(dbc.Container(dbc.Row(dbc.Col(G(ch_hourly(df)),width=12)),fluid=True),
-                label="⏰ كل ساعة", tab_id="hourly"),
+                label="⏰ نمط ساعي", tab_id="hourly"),
         dbc.Tab(risk_tab, label="⚠️ مستوى الخطر", tab_id="risk"),
         dbc.Tab(dbc.Container([
             dbc.Row(dbc.Col(G(ch_trend(daily)),width=12)),
