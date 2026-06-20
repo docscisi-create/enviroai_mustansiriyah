@@ -1,6 +1,6 @@
 """
 EnviroAI — Air Quality & Weather Analysis System
-كلية العلوم / الجامعة المستنصرية
+نظام متكامل لرصد وتحليل جودة الهواء والطقس
 """
 
 # ══════════════════════════════════════════════
@@ -727,7 +727,7 @@ def build_pdf_report(
         recc  = "يُوصى بتقليل التعرض للهواء الخارجي وارتداء الكمامات في ساعات الذروة."
     else:
         concl = "جودة الهواء غير صحية وتستدعي تدخلاً عاجلاً من الجهات المختصة."
-        recc  = "يُوصى بالإعلان عن تنبيه بيئي وتجنّب الأنشطة الخارجية والتنسيق مع مديرية البيئة."
+        recc  = "يُوصى بالإعلان عن تنبيه بيئي وتجنّب الأنشطة الخارجية والتنسيق مع الجهات المختصة."
 
     # ── Colours ──────────────────────────────────────────────────────
     C_BLUE  = rl_colors.HexColor("#1a3a6b")
@@ -762,7 +762,7 @@ def build_pdf_report(
 
     # Header banner
     hdr = Table([[
-        Paragraph(_a("كلية العلوم / الجامعة المستنصرية\nبالتعاون مع وزارة البيئة"),
+        Paragraph(_a("مركز رصد جودة الهواء والبيئة\nقسم مراقبة نوعية الهواء"),
                   _ps("hh", fontSize=10, alignment=TA_RIGHT, textColor=rl_colors.white, leading=18)),
         Paragraph(_a("EnviroAI"),
                   _ps("hh2", fontSize=16, alignment=TA_CENTER, textColor=rl_colors.white, leading=24)),
@@ -922,7 +922,7 @@ def build_pdf_report(
         "الانحدار الخطي OLS — التحليل الساعي (Hourly Pattern Analysis)."
     ), SF))
     story.append(Paragraph(_a(
-        "EnviroAI — كلية العلوم / الجامعة المستنصرية — بالتعاون مع وزارة البيئة"
+        "EnviroAI — مركز رصد جودة الهواء والبيئة — قسم مراقبة نوعية الهواء"
     ), _ps("ff", fontSize=7, alignment=TA_CENTER,
            textColor=rl_colors.HexColor("#aaa"), leading=12)))
 
@@ -990,7 +990,7 @@ def generate_report(df: pd.DataFrame, daily: pd.DataFrame, ftype: str):
         rec_color  = "warning"
     else:
         conclusion = "جودة الهواء غير صحية وتستدعي تدخلاً عاجلاً من الجهات المختصة."
-        rec        = "يُوصى بالإعلان عن تنبيه بيئي وتجنّب الأنشطة الخارجية والتنسيق مع مديرية البيئة."
+        rec        = "يُوصى بالإعلان عن تنبيه بيئي وتجنّب الأنشطة الخارجية والتنسيق مع الجهات المختصة."
         rec_color  = "danger"
 
     lv_color = lv_mean["color"] if lv_mean["color"] != "#FFFF00" else "#b8a000"
@@ -1241,7 +1241,7 @@ app = dash.Dash(
         dbc.themes.BOOTSTRAP,
         "https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap",
     ],
-    title="EnviroAI — الجامعة المستنصرية",
+    title="EnviroAI — نظام رصد جودة الهواء",
     suppress_callback_exceptions=True,
 )
 server = app.server
@@ -1256,12 +1256,11 @@ HEADER = dbc.Navbar(
                       style={"color": "#a8c8ff", "fontSize": ".68rem"}),
         ]), width="auto"),
         dbc.Col(html.Div([
-            html.Div("كلية العلوم / الجامعة المستنصرية",
+            html.Div("مركز رصد جودة الهواء والبيئة",
                      style={"color": "white", "fontWeight": "600",
                             "textAlign": "right", "fontSize": ".85rem"}),
             html.Div(
-                "بالتعاون مع وزارة البيئة / مديرية البيئة الحضرية — "
-                "قسم مراقبة نوعية الهواء والضوضاء",
+                "قسم مراقبة نوعية الهواء والمؤشرات البيئية",
                 style={"color": "#a8c8ff", "textAlign": "right", "fontSize": ".68rem"},
             ),
         ])),
